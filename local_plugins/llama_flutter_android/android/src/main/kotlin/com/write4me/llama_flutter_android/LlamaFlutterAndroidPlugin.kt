@@ -482,8 +482,9 @@ class LlamaFlutterAndroidPlugin : FlutterPlugin, LlamaHostApi, ActivityAware {
      * filtered by name in [computeRecommendedLayers].
      */
     private fun isGpuEligibleSoc(): Boolean {
-        // Tester override: create this file in the app's private files dir
-        // (needs adb run-as/root) to try the GPU on any device.
+        // Tester override: create force_gguf_gpu in the app's private files dir
+        // (needs adb run-as/root) or its external files dir (plain adb shell)
+        // to try the GPU on any device.
         if (isGpuForced()) {
             Log.w(TAG, "GPU eligibility overridden by force_gguf_gpu")
             return true
@@ -503,8 +504,16 @@ class LlamaFlutterAndroidPlugin : FlutterPlugin, LlamaHostApi, ActivityAware {
         return false
     }
 
+    /**
+     * Also checks the app's external files dir
+     * (/sdcard/Android/data/<package>/files/force_gguf_gpu), which plain
+     * `adb shell` can write on release builds where `run-as` is unavailable.
+     */
     private fun isGpuForced(): Boolean =
-        java.io.File(context.filesDir, "force_gguf_gpu").exists()
+        java.io.File(context.filesDir, "force_gguf_gpu").exists() ||
+            (context.getExternalFilesDir(null)?.let {
+                java.io.File(it, "force_gguf_gpu").exists()
+            } ?: false)
 
     private fun socDescription(): String =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
