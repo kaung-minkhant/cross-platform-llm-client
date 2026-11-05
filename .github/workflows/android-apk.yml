@@ -42,6 +42,37 @@ jobs:
           channel: stable
           cache: true
 
+      # The NDK's bundled glslc is too old for llama.cpp's cooperative-matrix
+      # Vulkan shaders. The llama plugin's CMake looks for a newer one in
+      # $VULKAN_SDK/bin, so install the LunarG SDK's glslc and point at it.
+      - name: Cache Vulkan SDK (glslc)
+        id: vulkan-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/vulkan-sdk
+          key: vulkan-sdk-1.4.321.1-linux
+
+      - name: Install Vulkan SDK (glslc)
+        if: steps.vulkan-cache.outputs.cache-hit != 'true'
+        run: |
+          VER=1.4.321.1
+          curl -fsSL -o "$RUNNER_TEMP/vulkansdk.tar.xz" \
+            "https://sdk.lunarg.com/sdk/download/$VER/linux/vulkansdk-linux-x86_64-$VER.tar.xz"
+          mkdir -p ~/vulkan-sdk
+          tar -xJf "$RUNNER_TEMP/vulkansdk.tar.xz" -C ~/vulkan-sdk \
+            --wildcards "*/x86_64/bin/*"
+          rm "$RUNNER_TEMP/vulkansdk.tar.xz"
+
+      - name: Use Vulkan SDK glslc
+        run: |
+          SDK="$(echo ~/vulkan-sdk/*/x86_64)"
+          echo "VULKAN_SDK=$SDK" >> "$GITHUB_ENV"
+          "$SDK/bin/glslc" --version
+          # Fail fast if this glslc can't build the cooperative-matrix shaders.
+          "$SDK/bin/glslc" -fshader-stage=compute --target-env=vulkan1.3 \
+            local_plugins/llama_flutter_android/android/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/vulkan-shaders/feature-tests/coopmat.comp \
+            -o /dev/null
+
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
