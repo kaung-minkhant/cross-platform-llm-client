@@ -1022,7 +1022,14 @@ std::unique_ptr<vk_queue> ggml_vk_create_queue(vk_device& device, uint32_t queue
         h = std::make_shared<vk_queue_handle_synchronized>();
     }
 
-    h->queue = device->device.getQueue2(queue_info2);
+    if (vk_compat11 && !device->has_internally_synchronized_queues) {
+        // Unverified hypothesis: on the Android 10 loader the queue from vkGetDeviceQueue2 crashes in
+        // vkQueueSubmit (null deref inside libvulkan). Plain vkGetDeviceQueue is equivalent when no
+        // queue flags are used, so prefer it in compat mode.
+        h->queue = device->device.getQueue(queue_family_index, queue_index);
+    } else {
+        h->queue = device->device.getQueue2(queue_info2);
+    }
     h->device = device;
     // Avoid concurrent submissions on NVIDIA due to driver bug.
     if (device->vendor_id == VK_VENDOR_ID_NVIDIA) {
