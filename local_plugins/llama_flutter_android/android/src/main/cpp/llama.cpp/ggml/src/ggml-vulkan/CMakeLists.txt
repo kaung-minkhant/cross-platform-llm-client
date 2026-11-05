@@ -56,6 +56,11 @@ function(test_shader_extension_support EXTENSION_NAME TEST_SHADER_FILE RESULT_VA
     endif()
 endfunction()
 
+if (NOT GGML_VULKAN_SHADER_TARGET_ENV)
+    # Fork-only: set to vulkan1.1 to build shaders loadable on Vulkan 1.1 drivers
+    set(GGML_VULKAN_SHADER_TARGET_ENV "vulkan1.2")
+endif()
+
 if (Vulkan_FOUND)
     message(STATUS "Vulkan found")
 
@@ -244,6 +249,7 @@ if (Vulkan_FOUND)
             DEPFILE ${_ggml_vk_target_cpp}.d
             COMMAND ${_ggml_vk_genshaders_cmd}
                 --glslc      ${Vulkan_GLSLC_EXECUTABLE}
+                --target-env ${GGML_VULKAN_SHADER_TARGET_ENV}
                 --source     ${file_full}
                 --output-dir ${_ggml_vk_output_dir}
                 --target-hpp ${_ggml_vk_header}

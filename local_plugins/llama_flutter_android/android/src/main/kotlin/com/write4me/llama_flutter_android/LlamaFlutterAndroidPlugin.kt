@@ -487,6 +487,13 @@ class LlamaFlutterAndroidPlugin : FlutterPlugin, LlamaHostApi, ActivityAware {
         // to try the GPU on any device.
         if (isGpuForced()) {
             Log.w(TAG, "GPU eligibility overridden by force_gguf_gpu")
+            // Also let the Vulkan backend run on Vulkan 1.1 drivers (compat
+            // mode in ggml-vulkan). Only done for testers using the override.
+            try {
+                android.system.Os.setenv("GGML_VK_ALLOW_VK11", "1", true)
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not set GGML_VK_ALLOW_VK11", e)
+            }
             return true
         }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return false

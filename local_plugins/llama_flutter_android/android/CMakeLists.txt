@@ -45,6 +45,9 @@ else()
 endif()
 
 if(GGML_VULKAN)
+    # Compile shaders as SPIR-V 1.3 (vulkan1.1) so they load on Vulkan 1.1
+    # drivers (e.g. Mali-G72, Android 10). 1.2+ drivers accept them too.
+    set(GGML_VULKAN_SHADER_TARGET_ENV "vulkan1.1" CACHE STRING "glslc --target-env" FORCE)
     # The NDK ships vulkan.h but not vulkan.hpp/SPIR-V headers, and the
     # C++ headers must match vulkan.h exactly, so fetch one pinned set.
     include(FetchContent)

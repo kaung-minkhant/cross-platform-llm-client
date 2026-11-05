@@ -41,6 +41,8 @@ static std::atomic<bool> compile_failed{false};
 std::locale c_locale("C");
 
 std::string GLSLC = "glslc";
+// Fork-only: glslc --target-env for non-cm2 shaders (vulkan1.1 for 1.1 devices)
+std::string shader_target_env = "vulkan1.2";
 std::string input_filepath = "";
 std::string output_dir = "/tmp";
 std::string target_hpp = "";
@@ -348,7 +350,13 @@ compile_count_guard acquire_compile_slot() {
 }
 
 void string_to_spv_func(std::string name, std::string in_path, std::string out_path, std::map<std::string, std::string> defines, bool coopmat, bool dep_file, compile_count_guard slot) {
-    std::string target_env = (name.find("_cm2") != std::string::npos) ? "--target-env=vulkan1.3" : "--target-env=vulkan1.2";
+    std::string target_env = (name.find("_cm2") != std::string::npos) ? "--target-env=vulkan1.3" : "--target-env=" + shader_target_env;
+    // These need SPIR-V 1.4+ / buffer device address. They are only used on
+    // devices that support those, so keep them at vulkan1.2 (still embedded so
+    // the C++ symbols exist, but never loaded on a 1.1-only device).
+    if (name.find("fa_decode_ph") != std::string::npos || name.find("_bda") != std::string::npos) {
+        target_env = "--target-env=vulkan1.2";
+    }
 
     #ifdef _WIN32
         std::vector<std::string> cmd = {GLSLC, "-fshader-stage=compute", target_env, "\"" + in_path + "\"", "-o", "\"" + out_path + "\""};
@@ -1397,6 +1405,9 @@ int main(int argc, char** argv) {
 
     if (args.find("--glslc") != args.end()) {
         GLSLC = args["--glslc"]; // Path to glslc
+    }
+    if (args.find("--target-env") != args.end()) {
+        shader_target_env = args["--target-env"];
     }
     if (args.find("--source") != args.end()) {
         input_filepath = args["--source"]; // The shader source file to compile
