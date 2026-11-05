@@ -544,19 +544,36 @@ class OpenAiServerService {
       stopSequences: stop,
       onToken: emit,
     );
-    await _finishStream(sse, inference, stopsBefore,
-        emitted ? null : result, emit);
+    await _finishStream(
+      sse,
+      inference,
+      stopsBefore,
+      emitted ? null : result,
+      emit,
+      () => {
+        'id': id,
+        'object': 'chat.completion.chunk',
+        'created': created,
+        'model': inference.loadedModelName.value,
+        'choices': [
+          {'index': 0, 'delta': <String, dynamic>{}, 'finish_reason': 'stop'}
+        ],
+      },
+    );
   }
 
   /// Ends an SSE stream: reports an interruption as an error event rather
   /// than a normal [DONE], so clients don't mistake a partial answer for a
-  /// complete one.
+  /// complete one. A normal completion sends [finalChunk] (carrying a
+  /// non-null `finish_reason`) before [DONE], as strict OpenAI clients
+  /// treat a stream without one as truncated.
   Future<void> _finishStream(
     _SseStream sse,
     InferenceService inference,
     int stopsBefore,
     String? unemittedResult,
     void Function(String) emit,
+    Map<String, dynamic> Function() finalChunk,
   ) async {
     if (inference.stopCount != stopsBefore) {
       sse.event({
@@ -569,6 +586,7 @@ class OpenAiServerService {
       if (unemittedResult != null && unemittedResult.isNotEmpty) {
         emit(unemittedResult);
       }
+      sse.event(finalChunk());
       sse.raw('data: [DONE]\n\n');
     }
     await sse.close();
@@ -614,8 +632,22 @@ class OpenAiServerService {
       stopSequences: stop,
       onToken: emit,
     );
-    await _finishStream(sse, inference, stopsBefore,
-        emitted ? null : result, emit);
+    await _finishStream(
+      sse,
+      inference,
+      stopsBefore,
+      emitted ? null : result,
+      emit,
+      () => {
+        'id': id,
+        'object': 'text_completion',
+        'created': created,
+        'model': inference.loadedModelName.value,
+        'choices': [
+          {'index': 0, 'text': '', 'finish_reason': 'stop'}
+        ],
+      },
+    );
   }
 
   Map<String, dynamic> _chatResponse(String model, String text) {

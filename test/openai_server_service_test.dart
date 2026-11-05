@@ -154,6 +154,75 @@ void main() {
       expect((await pending).statusCode, HttpStatus.serviceUnavailable);
     });
 
+    Future<String> streamBody(String path, String body,
+        {Future<void> Function()? during}) async {
+      final req =
+          await client.openUrl('POST', Uri.parse('http://127.0.0.1:$port$path'));
+      req.headers.contentType = ContentType.json;
+      req.write(body);
+      final res = await req.close();
+      expect(res.statusCode, 200);
+      final text = res.transform(utf8.decoder).join();
+      if (during != null) await during();
+      return text;
+    }
+
+    /// The JSON payloads of every `data:` event, excluding `[DONE]`.
+    List<Map<String, dynamic>> events(String sse) => [
+          for (final line in sse.split('\n'))
+            if (line.startsWith('data: ') && line.trim() != 'data: [DONE]')
+              jsonDecode(line.substring(6)) as Map<String, dynamic>
+        ];
+
+    test('chat stream ends with a finish_reason "stop" chunk before [DONE]',
+        () async {
+      final sse = await streamBody('/v1/chat/completions',
+          chatBody(stream: true));
+      final chunks = events(sse);
+
+      for (final c in chunks.take(chunks.length - 1)) {
+        expect(c['choices'][0]['finish_reason'], isNull);
+      }
+      final last = chunks.last;
+      expect(last['object'], 'chat.completion.chunk');
+      expect(last['id'], chunks.first['id']);
+      expect(last['choices'][0]['delta'], isEmpty);
+      expect(last['choices'][0]['finish_reason'], 'stop');
+      expect(sse.trimRight().endsWith('data: [DONE]'), isTrue);
+      expect(sse.indexOf('"finish_reason":"stop"'),
+          lessThan(sse.indexOf('data: [DONE]')));
+    });
+
+    test('completions stream ends with a finish_reason "stop" chunk',
+        () async {
+      final sse = await streamBody('/v1/completions',
+          jsonEncode({'prompt': 'hi', 'stream': true}));
+      final chunks = events(sse);
+
+      final last = chunks.last;
+      expect(last['object'], 'text_completion');
+      expect(last['id'], chunks.first['id']);
+      expect(last['choices'][0]['text'], '');
+      expect(last['choices'][0]['finish_reason'], 'stop');
+      expect(sse.trimRight().endsWith('data: [DONE]'), isTrue);
+    });
+
+    test('interrupted stream has no stop chunk and no [DONE]', () async {
+      fake.tokensToEmit = 50;
+      final sse = await streamBody(
+        '/v1/chat/completions',
+        chatBody(stream: true),
+        during: () async {
+          await Future.delayed(const Duration(milliseconds: 100));
+          await fake.stopGeneration();
+        },
+      );
+
+      expect(sse, contains('"type":"interrupted"'));
+      expect(sse, isNot(contains('"finish_reason":"stop"')));
+      expect(sse, isNot(contains('[DONE]')));
+    });
+
     test('streams live and stops the model when the client disconnects',
         () async {
       fake.tokensToEmit = 1000;
