@@ -898,6 +898,34 @@ class SettingsView extends GetView<SettingsController> {
           ],
         ]),
       ),
+
+      // Negative prompt
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Negative prompt', style: t.body),
+          const SizedBox(height: 8),
+          TextField(
+            controller: controller.imageNegativePromptController,
+            minLines: 2,
+            maxLines: 5,
+            style: t.body,
+            decoration: appInputDecoration(context,
+                hint: 'blurry, low quality, deformed, extra fingers'),
+          ),
+          _fieldFooter(
+            context,
+            note: 'What the image should avoid. Local models only.',
+            onSave: () async {
+              await controller.setImageNegativePrompt(
+                  controller.imageNegativePromptController.text);
+              if (context.mounted) {
+                _confirmSaved(context, 'Negative prompt saved');
+              }
+            },
+          ),
+        ]),
+      ),
     ]);
   }
 }

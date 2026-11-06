@@ -350,12 +350,18 @@ class LocalImageService extends GetxService {
         latestLog.value = log.message;
       });
 
+      final negativePrompt = _hive.getSetting<String>(
+              AppConstants.keyImageNegativePrompt,
+              defaultValue: '') ??
+          '';
+
       final result = await _processor!.generate(
         prompt: prompt,
+        negativePrompt: negativePrompt,
         width: imageSize,
         height: imageSize,
         steps: effectiveSteps,
-        // Future: expose width, height, seed, cfg, negativePrompt, sampleMethod from settings
+        // Future: expose width, height, seed, cfg, sampleMethod from settings
       );
 
       await progressSub.cancel();

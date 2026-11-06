@@ -212,6 +212,11 @@ class LocalImageService extends GetxService {
               defaultValue: AppConstants.defaultImageSteps) ??
           AppConstants.defaultImageSteps;
 
+      final negativePrompt = _hive.getSetting<String>(
+              AppConstants.keyImageNegativePrompt,
+              defaultValue: '') ??
+          '';
+
       _win.onWebGpuImageProgressDart =
           ((JSAny step, JSAny total) {
         final s = step.dartify() as num? ?? 0;
@@ -220,7 +225,7 @@ class LocalImageService extends GetxService {
       }).toJS;
 
       _win.generateWebGpuImage?.callAsFunction(
-          null, prompt.toJS, ''.toJS, steps.toJS);
+          null, prompt.toJS, negativePrompt.toJS, steps.toJS);
 
       Timer(const Duration(minutes: 5), () {
         if (isGenerating.value) {

@@ -79,6 +79,7 @@ class SettingsController extends GetxController {
   /// Strings that end a local model's reply (one per line in Settings).
   final stopSequences = <String>[].obs;
   final stopSequencesController = TextEditingController();
+  final imageNegativePromptController = TextEditingController();
 
   final openaiModelController = TextEditingController();
   final anthropicModelController = TextEditingController();
@@ -124,6 +125,7 @@ class SettingsController extends GetxController {
     customCloudKeyController.dispose();
     globalSystemPromptController.dispose();
     stopSequencesController.dispose();
+    imageNegativePromptController.dispose();
     openaiModelController.dispose();
     anthropicModelController.dispose();
     googleModelController.dispose();
@@ -264,6 +266,10 @@ class SettingsController extends GetxController {
         .whereType<String>()
         .toList();
     stopSequencesController.text = stopSequences.join('\n');
+    imageNegativePromptController.text = _hive.getSetting<String>(
+            AppConstants.keyImageNegativePrompt,
+            defaultValue: '') ??
+        '';
 
     openaiModelController.text = openaiModel.value;
     anthropicModelController.text = anthropicModel.value;
@@ -747,6 +753,13 @@ class SettingsController extends GetxController {
     final normalized = allowed ? value : AppConstants.defaultImageGenSize;
     imageGenSize.value = normalized;
     await _hive.setSetting(AppConstants.keyImageGenSize, normalized);
+  }
+
+  /// Things the image model should steer away from. Empty means none.
+  Future<void> setImageNegativePrompt(String text) async {
+    final trimmed = text.trim();
+    imageNegativePromptController.text = trimmed;
+    await _hive.setSetting(AppConstants.keyImageNegativePrompt, trimmed);
   }
 
   Future<void> _detectImageGpu() async {

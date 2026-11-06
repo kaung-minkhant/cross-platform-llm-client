@@ -75,6 +75,7 @@ class AppConstants {
   static const String keyImageGenGpuGuardMb = 'image_gen_gpu_guard_mb';
   static const String keyImageGenSize = 'image_gen_size';
   static const String keyImageGenQuantization = 'image_gen_quantization';
+  static const String keyImageNegativePrompt = 'image_negative_prompt';
   static const String keyFontScale = 'font_scale';
   static const String keyBatchModeWarningAccepted =
       'batch_mode_warning_accepted';
