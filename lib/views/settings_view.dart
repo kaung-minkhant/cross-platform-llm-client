@@ -98,6 +98,7 @@ class SettingsView extends GetView<SettingsController> {
                 title: 'Hugging Face',
                 value: controller.hfToken.value.isEmpty ? 'No token' : 'Token set',
                 builder: (ctx) => _buildHuggingFaceGroup(ctx),
+                reactive: false,
               ),
             ]),
             const SectionHeader('Performance'),
