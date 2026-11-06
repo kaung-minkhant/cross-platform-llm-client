@@ -269,7 +269,12 @@ class DownloadService extends GetxService with WidgetsBindingObserver {
     final downloadProgress = DownloadProgress(filename: filename);
     activeDownloads[filename] = downloadProgress;
 
-    if (Platform.isAndroid) {
+    final hasToken = authToken != null && authToken.isNotEmpty;
+    // Android's DownloadManager is only used for public files. With a token we
+    // use the app's own downloader, which drops the Authorization header when
+    // Hugging Face redirects to its CDN; DownloadManager gives no such
+    // guarantee.
+    if (Platform.isAndroid && !hasToken) {
       try {
         final modelsDirectory = await modelsDir;
         final result = await platform_dl.startNativeDownload(

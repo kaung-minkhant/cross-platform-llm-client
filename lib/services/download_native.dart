@@ -205,6 +205,19 @@ Future<String> downloadModel({
   } on DioException catch (e) {
     _cancelTokens.remove(filename);
     if (e.type == DioExceptionType.cancel) return 'PAUSED';
+    final status = e.response?.statusCode;
+    if (status == 401 || status == 403) {
+      final hadToken = authToken != null && authToken.isNotEmpty;
+      throw Exception(hadToken
+          ? 'Download failed: access denied ($status). Your Hugging Face '
+              'token may be wrong, or you have not accepted this model\'s '
+              'terms on huggingface.co.'
+          : 'Download failed: this model needs a Hugging Face account '
+              '($status). Add an access token in Settings > Hugging Face.');
+    }
+    if (status == 404) {
+      throw Exception('Download failed: file not found (404). Check the link.');
+    }
     throw Exception(
         'Download failed: ${e.message}. Tap download again to resume.');
   } catch (e) {

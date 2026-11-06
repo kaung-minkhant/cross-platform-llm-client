@@ -28,6 +28,12 @@ void main() {
       expect(out, isNot(contains('ABCDEFGHIJ12')));
     });
 
+    test('masks Hugging Face tokens', () {
+      final out = redactSecrets('token hf_AbCdEfGhIjKlMnOpQrStUvWxYz012345 here');
+      expect(out, isNot(contains('AbCdEfGhIjKlMnOp')));
+      expect(out, contains('hf_[REDACTED]'));
+    });
+
     test('leaves ordinary text untouched', () {
       const input = 'Model failed to load: out of memory (task=sk)';
       expect(redactSecrets(input), input);

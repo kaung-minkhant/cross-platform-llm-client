@@ -134,6 +134,58 @@ void main() {
     await server.stop();
   });
 
+  test('sends the token, but not to a different host after a redirect',
+      () async {
+    final authSeen = <String, String?>{};
+    // "CDN": a different origin (port) that the first server redirects to.
+    final cdn = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    cdn.listen((req) async {
+      authSeen['cdn'] = req.headers.value(HttpHeaders.authorizationHeader);
+      req.response.contentLength = body.length;
+      req.response.add(body);
+      await req.response.close();
+    });
+    final origin = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    origin.listen((req) async {
+      authSeen['origin'] = req.headers.value(HttpHeaders.authorizationHeader);
+      req.response.statusCode = HttpStatus.found;
+      req.response.headers
+          .set(HttpHeaders.locationHeader, 'http://localhost:${cdn.port}/f');
+      await req.response.close();
+    });
+
+    final result = await downloadModel(
+      url: 'http://127.0.0.1:${origin.port}/model.gguf',
+      savePath: savePath,
+      authToken: 'hf_testtoken',
+    );
+    expect(result, savePath);
+    expect(authSeen['origin'], 'Bearer hf_testtoken');
+    expect(authSeen.containsKey('cdn'), isTrue, reason: 'redirect not followed');
+    expect(authSeen['cdn'], isNull,
+        reason: 'a signed CDN URL must not receive the Hugging Face token');
+    await origin.close(force: true);
+    await cdn.close(force: true);
+  });
+
+  test('a 401 explains the Hugging Face token problem', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((req) async {
+      req.response.statusCode = HttpStatus.unauthorized;
+      await req.response.close();
+    });
+    final url = 'http://127.0.0.1:${server.port}/model.gguf';
+    await expectLater(
+      downloadModel(url: url, savePath: savePath),
+      throwsA(predicate((e) => '$e'.contains('Add an access token'))),
+    );
+    await expectLater(
+      downloadModel(url: url, savePath: savePath, authToken: 'hf_x'),
+      throwsA(predicate((e) => '$e'.contains('accepted this model'))),
+    );
+    await server.close(force: true);
+  });
+
   test('a dropped connection keeps the partial file for resuming', () async {
     // Raw socket server: sends headers and part of the body, then hangs up.
     final dropping = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
