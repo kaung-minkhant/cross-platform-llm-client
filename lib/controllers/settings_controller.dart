@@ -29,6 +29,7 @@ class SettingsController extends GetxController {
   final nvidiaKey = ''.obs;
   final openRouterKey = ''.obs;
   final deepSeekKey = ''.obs;
+  final hfToken = ''.obs;
   final customCloudName = 'Custom API'.obs;
   final customCloudBaseUrl = ''.obs;
   final customCloudKey = ''.obs;
@@ -71,6 +72,7 @@ class SettingsController extends GetxController {
   final nvidiaKeyController = TextEditingController();
   final openRouterKeyController = TextEditingController();
   final deepSeekKeyController = TextEditingController();
+  final hfTokenController = TextEditingController();
   final customCloudNameController = TextEditingController();
   final customCloudBaseUrlController = TextEditingController();
   final customCloudKeyController = TextEditingController();
@@ -120,6 +122,7 @@ class SettingsController extends GetxController {
     nvidiaKeyController.dispose();
     openRouterKeyController.dispose();
     deepSeekKeyController.dispose();
+    hfTokenController.dispose();
     customCloudNameController.dispose();
     customCloudBaseUrlController.dispose();
     customCloudKeyController.dispose();
@@ -157,6 +160,8 @@ class SettingsController extends GetxController {
     nvidiaKey.value = _hive.getSetting(AppConstants.keyNvidiaKey) ?? '';
     openRouterKey.value = _hive.getSetting(AppConstants.keyOpenRouterKey) ?? '';
     deepSeekKey.value = _hive.getSetting(AppConstants.keyDeepSeekKey) ?? '';
+    hfToken.value = _hive.getSetting(AppConstants.keyHfToken) ?? '';
+    hfTokenController.text = hfToken.value;
     customCloudName.value = _hive.getSetting(AppConstants.keyCustomCloudName,
             defaultValue: 'Custom API') ??
         'Custom API';
@@ -411,6 +416,14 @@ class SettingsController extends GetxController {
         await _hive.setSetting(AppConstants.keyCustomCloudKey, trimmed);
         break;
     }
+  }
+
+  /// Hugging Face access token, used only for huggingface.co downloads.
+  Future<void> setHfToken(String token) async {
+    final trimmed = token.trim();
+    hfToken.value = trimmed;
+    hfTokenController.text = trimmed;
+    await _hive.setSetting(AppConstants.keyHfToken, trimmed);
   }
 
   void debouncedSetApiKey(String provider, String key) {

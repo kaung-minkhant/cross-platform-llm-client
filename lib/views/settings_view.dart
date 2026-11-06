@@ -90,6 +90,17 @@ class SettingsView extends GetView<SettingsController> {
                     ]),
               ),
             ]),
+            const SectionHeader('Models'),
+            AppGroup(dividerIndent: 60, children: [
+              _navRow(
+                context,
+                icon: Icons.key_rounded,
+                title: 'Hugging Face',
+                value: controller.hfToken.value.isEmpty ? 'No token' : 'Token set',
+                builder: (ctx) => _buildHuggingFaceGroup(ctx),
+                reactive: false,
+              ),
+            ]),
             const SectionHeader('Performance'),
             AppGroup(dividerIndent: 60, children: [
               _navRow(
@@ -263,6 +274,36 @@ class SettingsView extends GetView<SettingsController> {
           if (context.mounted) {
             _confirmSaved(context, 'System prompt saved');
           }
+        },
+      ),
+    ]);
+  }
+
+  Widget _buildHuggingFaceGroup(BuildContext context) {
+    final t = AppTokens.of(context);
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      const AppNotice(
+        'Only needed for gated or private models. Create a read-only token at '
+        'huggingface.co/settings/tokens. It is sent only to huggingface.co, '
+        'and downloads that use it run inside the app instead of the system '
+        'download manager.',
+      ),
+      const SizedBox(height: 14),
+      TextField(
+        controller: controller.hfTokenController,
+        obscureText: true,
+        autocorrect: false,
+        enableSuggestions: false,
+        style: t.mono.copyWith(fontSize: 14),
+        decoration: appInputDecoration(context, hint: 'hf_...'),
+        onSubmitted: (v) => controller.setHfToken(v),
+      ),
+      _fieldFooter(
+        context,
+        note: 'Stored on this device.',
+        onSave: () async {
+          await controller.setHfToken(controller.hfTokenController.text);
+          if (context.mounted) _confirmSaved(context, 'Hugging Face token saved');
         },
       ),
     ]);
