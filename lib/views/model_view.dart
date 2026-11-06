@@ -141,8 +141,18 @@ class ModelView extends GetView<ModelController> {
     showAppSheet<void>(
       context,
       title: 'Import model',
-      subtitle: 'Add .gguf, .litertlm or .safetensors files from your phone.',
+      subtitle: 'Add .gguf, .litertlm or .safetensors files.',
       builder: (ctx) => AppGroup(dividerIndent: 60, children: [
+        AppRow(
+          icon: Icons.link_rounded,
+          title: 'Add from link',
+          subtitle: 'Paste a Hugging Face or direct file link',
+          chevron: true,
+          onTap: () {
+            Navigator.pop(ctx);
+            _showAddFromLinkSheet(context);
+          },
+        ),
         AppRow(
           icon: Icons.insert_drive_file_outlined,
           title: 'Import file',
@@ -165,6 +175,70 @@ class ModelView extends GetView<ModelController> {
             },
           ),
       ]),
+    );
+  }
+
+  void _showAddFromLinkSheet(BuildContext context) {
+    final input = TextEditingController();
+    final error = ''.obs;
+    final busy = false.obs;
+    showAppSheet<void>(
+      context,
+      title: 'Add from link',
+      subtitle: 'Paste the link to one model file. It downloads to this phone.',
+      builder: (ctx) {
+        final t = AppTokens.of(ctx);
+        Future<void> submit() async {
+          if (busy.value) return;
+          busy.value = true;
+          error.value = '';
+          final message = await controller.addModelFromUrl(input.text);
+          busy.value = false;
+          if (message == null) {
+            if (ctx.mounted) Navigator.of(ctx).pop();
+          } else {
+            error.value = message;
+          }
+        }
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AppField(
+              label: 'File link',
+              helper: 'On a Hugging Face page, open "Files", pick one file and '
+                  'copy its link. Image models must be a single .safetensors '
+                  'file (SD 1.5).',
+              child: TextField(
+                controller: input,
+                keyboardType: TextInputType.url,
+                autocorrect: false,
+                enableSuggestions: false,
+                style: t.body,
+                decoration: _sheetInput(ctx,
+                    hint: 'https://huggingface.co/.../resolve/main/model.gguf'),
+                onSubmitted: (_) => submit(),
+              ),
+            ),
+            Obx(() {
+              if (error.value.isEmpty) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: AppNotice(error.value,
+                    icon: Icons.error_outline_rounded, color: t.red),
+              );
+            }),
+            const SizedBox(height: 18),
+            Obx(() => PrimaryButton(
+                  label: 'Add and download',
+                  icon: Icons.download_rounded,
+                  busy: busy.value,
+                  onPressed: submit,
+                )),
+          ],
+        );
+      },
     );
   }
 

@@ -28,6 +28,7 @@ final List<(RegExp, String Function(Match))> _rules = [
   (RegExp(r'\bAIza[0-9A-Za-z_\-]{20,}'), (_) => 'AIza[REDACTED]'),
   (RegExp(r'\bnvapi-[A-Za-z0-9_\-]{8,}'), (_) => 'nvapi-[REDACTED]'),
   (RegExp(r'\baichat_[0-9a-f]{16,}'), (_) => 'aichat_[REDACTED]'),
+  (RegExp(r'\bhf_[A-Za-z0-9]{20,}'), (_) => 'hf_[REDACTED]'),
 ];
 
 String redactSecrets(String input) {

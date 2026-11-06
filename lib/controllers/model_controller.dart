@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../services/download_service.dart';
+import '../services/model_url.dart';
 import '../services/gguf_metadata.dart';
 import '../services/inference_service.dart';
 import '../services/local_image_service.dart';
@@ -424,12 +425,67 @@ class ModelController extends GetxController {
       await _download.downloadModel(
         url: model.url,
         filename: model.filename,
+        authToken: _hfTokenFor(model.url),
       );
       await refreshDownloaded();
     } catch (e) {
       Get.find<AppLogService>().error('Model download failed', details: e);
       showToast('Download Failed', '$e', tone: ToastTone.error);
     }
+  }
+
+  /// The saved Hugging Face token, but only for huggingface.co links so it
+  /// can never leak to another site.
+  String? _hfTokenFor(String url) {
+    final token = _settings.hfToken.value.trim();
+    if (token.isEmpty || !shouldSendHfToken(url)) return null;
+    return token;
+  }
+
+  /// Adds a model from a pasted link (Hugging Face or any direct file link),
+  /// remembers it, and starts the download. Returns an error message to show
+  /// in the sheet, or null when the download started.
+  Future<String?> addModelFromUrl(String input) async {
+    final parsed = parseModelUrl(input);
+    if (parsed.error != null) return parsed.error;
+    final link = parsed.value!;
+
+    if (availableModels.any((m) => m.filename == link.filename) ||
+        isDownloaded(link.filename)) {
+      return '${link.filename} is already in your models.';
+    }
+
+    final token = link.isHuggingFace ? _hfTokenFor(link.url) : null;
+    final bytes =
+        await _download.getRemoteFileSize(link.url, authToken: token);
+
+    final lower = link.filename.toLowerCase();
+    final runtime = AiModel.runtimeFromFilename(link.filename);
+    final model = AiModel(
+      name: modelNameFromFilename(link.filename),
+      filename: link.filename,
+      url: link.url,
+      size: bytes > 0 ? DownloadService.formatBytes(bytes) : 'Unknown size',
+      description: link.isHuggingFace
+          ? 'Added from Hugging Face'
+          : 'Added from a link',
+      template: runtime == AiModel.runtimeSd
+          ? 'sd'
+          : runtime == AiModel.runtimeLiteRt
+              ? 'litert'
+              : 'chatml',
+      runtime: runtime,
+      isVision: runtime == AiModel.runtimeLiteRt &&
+          AiModel.hasVisionMarker(lower),
+      isCustom: true,
+    );
+
+    customModels.add(model);
+    availableModels.add(model);
+    await _saveCustomModels();
+    modelScope.value = 'local';
+    unawaited(downloadModel(model));
+    return null;
   }
 
   /// Copies a downloaded model (and its vision file, if any) from app
