@@ -103,6 +103,7 @@ class SettingsView extends GetView<SettingsController> {
                 },
                 builder: (ctx) => _buildLiteRtGroup(ctx),
               ),
+              _buildCpuThreadsRow(context),
               _navRow(
                 context,
                 icon: Icons.image_outlined,
@@ -602,6 +603,33 @@ class SettingsView extends GetView<SettingsController> {
         ]),
       );
     });
+  }
+
+  /// CPU thread count for GGUF models. Auto picks from the device tier.
+  Widget _buildCpuThreadsRow(BuildContext context) {
+    final t = AppTokens.of(context);
+    return AppRow(
+      icon: Icons.developer_board_rounded,
+      title: 'CPU threads',
+      subtitle: 'GGUF models. Applies the next time a model is loaded',
+      trailing: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          value: controller.cpuThreads.value,
+          borderRadius: BorderRadius.circular(12),
+          dropdownColor: t.isDark ? const Color(0xFF2C2C2E) : Colors.white,
+          icon: Icon(Icons.expand_more_rounded, color: t.muted, size: 20),
+          style: t.body,
+          items: [
+            const DropdownMenuItem(value: 0, child: Text('Auto')),
+            for (var n = 1; n <= 8; n++)
+              DropdownMenuItem(value: n, child: Text('$n')),
+          ],
+          onChanged: (v) {
+            if (v != null) controller.setCpuThreads(v);
+          },
+        ),
+      ),
+    );
   }
 
   Widget _buildLiteRtGroup(BuildContext context) {

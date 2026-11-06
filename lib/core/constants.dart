@@ -39,6 +39,9 @@ class AppConstants {
   static const String keyLocalModelRuntime = 'local_model_runtime';
   static const String keyLocalModelBackend = 'local_model_backend';
   static const String keyLiteRtPerformanceMode = 'litert_performance_mode';
+
+  /// CPU threads for GGUF models. 0 = Auto (picked from the device tier).
+  static const String keyCpuThreads = 'cpu_threads';
   static const String keyLiteRtGpuWarningAccepted =
       'litert_gpu_warning_accepted';
   static const String keyLiteRtGpuLoadPending = 'litert_gpu_load_pending';
@@ -81,6 +84,7 @@ class AppConstants {
   static const int defaultMaxTokens = 1024;
   static const int defaultContextSize = 2048;
   static const String defaultLiteRtPerformanceMode = 'auto_fast';
+  static const int defaultCpuThreads = 0;
   static const int defaultImageSteps = 1;
   static const bool defaultImageGenForceCpu = true;
   static const int defaultImageGenGpuGuardMb = 1843; // 1.8 GB

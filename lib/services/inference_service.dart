@@ -130,6 +130,11 @@ class InferenceService extends GetxService {
 
       final deviceTier = _getDeviceTier();
       final isTensorSoC = _getIsTensorSoC();
+      final cpuThreads = _hive.getSetting<int>(
+            AppConstants.keyCpuThreads,
+            defaultValue: AppConstants.defaultCpuThreads,
+          ) ??
+          AppConstants.defaultCpuThreads;
 
       // Phone cluster: GGUF layers spread across worker phones. This phone
       // then runs its share on the CPU.
@@ -147,6 +152,7 @@ class InferenceService extends GetxService {
         contextSize: finalContextSize,
         deviceTier: deviceTier,
         isTensorSoC: isTensorSoC,
+        cpuThreads: cpuThreads,
         liteRtPerformanceMode: liteRtMode,
         forceLiteRtCpu: forceLiteRtCpu,
         clearLiteRtCache: contextChanged,
@@ -465,6 +471,7 @@ class InferenceService extends GetxService {
     required int contextSize,
     required String deviceTier,
     bool isTensorSoC = false,
+    int cpuThreads = 0,
     required String liteRtPerformanceMode,
     required bool forceLiteRtCpu,
     required bool clearLiteRtCache,
@@ -484,6 +491,7 @@ class InferenceService extends GetxService {
         contextSize: contextSize,
         deviceTier: deviceTier,
         isTensorSoC: isTensorSoC,
+        cpuThreads: cpuThreads,
         liteRtPerformanceMode: liteRtPerformanceMode,
         forceLiteRtCpu: true,
         clearLiteRtCache: true,
@@ -499,6 +507,7 @@ class InferenceService extends GetxService {
         contextSize: contextSize,
         deviceTier: deviceTier,
         isTensorSoC: isTensorSoC,
+        cpuThreads: cpuThreads,
         liteRtPerformanceMode: liteRtPerformanceMode,
         forceLiteRtCpu: forceLiteRtCpu,
         clearLiteRtCache: clearLiteRtCache,

@@ -50,6 +50,7 @@ class SettingsController extends GetxController {
   final maxTokens = 512.obs;
   final contextSize = 2048.obs;
   final liteRtPerformanceMode = AppConstants.defaultLiteRtPerformanceMode.obs;
+  final cpuThreads = AppConstants.defaultCpuThreads.obs;
 
   final imageSteps = 1.obs;
   final imageGenForceCpu = AppConstants.defaultImageGenForceCpu.obs;
@@ -206,6 +207,10 @@ class SettingsController extends GetxController {
           defaultValue: AppConstants.defaultLiteRtPerformanceMode,
         ) ??
         AppConstants.defaultLiteRtPerformanceMode;
+    cpuThreads.value = (_hive.getSetting<int>(AppConstants.keyCpuThreads,
+                defaultValue: AppConstants.defaultCpuThreads) ??
+            AppConstants.defaultCpuThreads)
+        .clamp(0, 8);
     imageSteps.value = _hive.getSetting(AppConstants.keyImageSteps,
             defaultValue: AppConstants.defaultImageSteps) ??
         AppConstants.defaultImageSteps;
@@ -710,6 +715,12 @@ class SettingsController extends GetxController {
     };
     liteRtPerformanceMode.value = normalized;
     await _hive.setSetting(AppConstants.keyLiteRtPerformanceMode, normalized);
+  }
+
+  Future<void> setCpuThreads(int value) async {
+    final clamped = value.clamp(0, 8);
+    cpuThreads.value = clamped;
+    await _hive.setSetting(AppConstants.keyCpuThreads, clamped);
   }
 
   Future<void> setImageSteps(int value) async {
