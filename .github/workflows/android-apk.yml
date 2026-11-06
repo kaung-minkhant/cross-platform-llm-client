@@ -1,0 +1,126 @@
+name: Build Android APK
+
+# Fork-only. Run it from the Actions tab ("Run workflow"), or push a tag
+# like v1.0.7-note9 to build and attach the APK to a workflow run.
+on:
+  workflow_dispatch:
+    inputs:
+      abi:
+        description: "Target ABI (Note 9 is arm64)"
+        type: choice
+        default: android-arm64
+        options:
+          - android-arm64
+          - android-arm
+          - all
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # stable-diffusion.cpp is a submodule and is compiled by the sd plugin.
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # Same version as .metadata / the local nix flake.
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.38.4"
+          channel: stable
+          cache: true
+
+      # The NDK's bundled glslc is too old for llama.cpp's cooperative-matrix
+      # Vulkan shaders. The llama plugin's CMake looks for a newer one in
+      # $VULKAN_SDK/bin, so install the LunarG SDK's glslc and point at it.
+      - name: Cache Vulkan SDK (glslc)
+        id: vulkan-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/vulkan-sdk
+          key: vulkan-sdk-1.4.321.1-linux
+
+      - name: Install Vulkan SDK (glslc)
+        if: steps.vulkan-cache.outputs.cache-hit != 'true'
+        run: |
+          VER=1.4.321.1
+          curl -fsSL -o "$RUNNER_TEMP/vulkansdk.tar.xz" \
+            "https://sdk.lunarg.com/sdk/download/$VER/linux/vulkansdk-linux-x86_64-$VER.tar.xz"
+          mkdir -p ~/vulkan-sdk
+          tar -xJf "$RUNNER_TEMP/vulkansdk.tar.xz" -C ~/vulkan-sdk \
+            --wildcards "*/x86_64/bin/*"
+          rm "$RUNNER_TEMP/vulkansdk.tar.xz"
+
+      - name: Use Vulkan SDK glslc
+        run: |
+          SDK="$(echo ~/vulkan-sdk/*/x86_64)"
+          echo "VULKAN_SDK=$SDK" >> "$GITHUB_ENV"
+          "$SDK/bin/glslc" --version
+          # Fail fast if this glslc can't build the cooperative-matrix shaders.
+          "$SDK/bin/glslc" -fshader-stage=compute --target-env=vulkan1.3 \
+            local_plugins/llama_flutter_android/android/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/vulkan-shaders/feature-tests/coopmat.comp \
+            -o /dev/null
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties', 'local_plugins/**/build.gradle*') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      # Optional. Without these secrets the APK is signed with a throwaway
+      # debug key, which is fine for installing once on your own phone but
+      # cannot be updated in place by a later build (uninstall first).
+      # To get updatable APKs, add: ANDROID_KEYSTORE_BASE64 (base64 of the
+      # .jks), ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD.
+      - name: Configure release signing
+        id: signing
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            cat > android/key.properties <<EOF
+          storeFile=$RUNNER_TEMP/release.jks
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          EOF
+            echo "signed=release" >> "$GITHUB_OUTPUT"
+          else
+            echo "signed=debug" >> "$GITHUB_OUTPUT"
+          fi
+
+      - run: flutter pub get
+
+      - name: Build APK
+        env:
+          PRIVATELM_ALLOW_DEBUG_RELEASE_SIGNING: ${{ steps.signing.outputs.signed == 'debug' && 'true' || 'false' }}
+          ABI: ${{ inputs.abi || 'android-arm64' }}
+        run: |
+          if [ "$ABI" = "all" ]; then
+            flutter build apk --release --split-per-abi
+          else
+            flutter build apk --release --split-per-abi --target-platform "$ABI"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: privatelm-apk-${{ steps.signing.outputs.signed }}-signed
+          path: build/app/outputs/flutter-apk/*.apk
+          if-no-files-found: error
+          retention-days: 14
