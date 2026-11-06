@@ -33,6 +33,7 @@ class AppConstants {
   static const String keyOpenRouterModel = 'openrouter_model';
   static const String keyDeepSeekModel = 'deepseek_model';
   static const String keyCustomCloudModel = 'custom_cloud_model';
+  static const String keyHfToken = 'hf_token';
   static const String keyGlobalSystemPrompt = 'global_system_prompt';
   static const String keyLocalModelPath = 'local_model_path';
   static const String keyLocalModelName = 'local_model_name';
