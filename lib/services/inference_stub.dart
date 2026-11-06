@@ -33,6 +33,7 @@ class InferenceEngine {
     String? modelRuntime,
     required int contextSize,
     required String deviceTier,
+    int cpuThreads = 0,
     String liteRtPerformanceMode = 'cpu_safe',
     bool forceLiteRtCpu = true,
     bool clearLiteRtCache = false,

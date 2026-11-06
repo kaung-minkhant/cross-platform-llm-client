@@ -62,6 +62,7 @@ class InferenceEngine {
     required int contextSize,
     required String deviceTier,
     bool isTensorSoC = false,
+    int cpuThreads = 0,
     String liteRtPerformanceMode = 'auto_fast',
     bool forceLiteRtCpu = false,
     bool clearLiteRtCache = false,
@@ -155,6 +156,12 @@ class InferenceEngine {
               : deviceTier == 'mid'
                   ? 4
                   : 3;
+    }
+
+    // A thread count chosen in Settings overrides the automatic one.
+    if (cpuThreads > 0) {
+      threads = cpuThreads;
+      print('[Inference] Using $threads CPU threads from Settings');
     }
 
     // Google Tensor SoC (Pixel 6/7/8) has known Q4_K_M dequant bugs
